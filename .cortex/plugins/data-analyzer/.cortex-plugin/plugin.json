@@ -1,0 +1,5 @@
+{
+  "name": "data-analyzer",
+  "description": "Profile tables in a Snowflake schema and infer relationships; outputs human + machine-readable analysis.",
+  "version": "0.1.0"
+}

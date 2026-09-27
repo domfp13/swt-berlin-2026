@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "write|edit|multi_edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/validate_analysis.py\"",
+            "timeout": 30,
+            "statusMessage": "Validating analysis.json contract"
+          }
+        ]
+      }
+    ]
+  }
+}
