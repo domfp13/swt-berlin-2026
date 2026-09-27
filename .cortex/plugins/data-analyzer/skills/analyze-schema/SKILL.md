@@ -172,7 +172,7 @@ How downstream plugins should read the contract (for example, a dbt generator):
 - `freshness.column` -> source `loaded_at_field`
 - `role` -> staging vs. dimension vs. fact model layout
 
-After writing, validate the JSON parses: `python3 -m json.tool <path> > /dev/null`.
+Validation is automatic. The plugin's `PostToolUse` hook (`hooks/validate_analysis.py`) checks `analysis.json` against this contract every time it is written. It checks required keys, enum values, that PKs and FKs point to real columns, that the FK flags match the relationships, and that the roles are consistent. If the hook reports `contract check FAILED`, fix every listed error and write the file again. Do not report success until the hook passes.
 
 ### 6. Report in chat
 
