@@ -1,0 +1,288 @@
+{
+  "contract_version": "1.0",
+  "generated_at": "2026-09-27T10:12:07Z",
+  "database": "SWT_BERLIN_2026",
+  "schema": "PUBLIC",
+  "tables": [
+    {
+      "name": "RAW_CAMPAIGNS",
+      "type": "BASE TABLE",
+      "role": "dimension",
+      "row_count": 20,
+      "sampled": false,
+      "grain": "one row per marketing campaign",
+      "primary_key": { "column": "CAMPAIGN_ID", "source": "inferred" },
+      "freshness": { "column": "START_DATE", "max_value": "2026-08-31", "days_since_latest": 27 },
+      "columns": [
+        { "name": "CAMPAIGN_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 20, "min": 1, "max": 20, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "CAMPAIGN_NAME", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 20, "min": null, "max": null, "accepted_values": ["Campaign 1", "Campaign 10", "Campaign 11", "Campaign 12", "Campaign 13", "Campaign 14", "Campaign 15", "Campaign 16", "Campaign 17", "Campaign 18", "Campaign 19", "Campaign 2", "Campaign 20", "Campaign 3", "Campaign 4", "Campaign 5", "Campaign 6", "Campaign 7", "Campaign 8", "Campaign 9"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "CHANNEL", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 6, "min": null, "max": null, "accepted_values": ["Affiliate", "Display", "Email", "Influencer", "Paid Search", "Social Media"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "BUDGET", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 20, "min": 1717.8, "max": 46598.38, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "SPEND", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 20, "min": 1502.81, "max": 44069.87, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "START_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 20, "min": "2025-10-05", "max": "2026-08-31", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "END_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 19, "min": "2025-11-28", "max": "2026-09-27", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "TARGET_REGION", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["APAC", "EMEA", "LATAM", "North America"], "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "9 of 20 campaigns have END_DATE before START_DATE.",
+        "9 of 20 campaigns have SPEND greater than BUDGET (6 of them also have inverted dates).",
+        "Only 2,339 of 10,000 RAW_CAMPAIGN_EVENTS rows fall inside their campaign's START_DATE-END_DATE window.",
+        "CAMPAIGN_NAME is a unique label; its accepted_values list all 20 names only because the table is small."
+      ]
+    },
+    {
+      "name": "RAW_CAMPAIGN_EVENTS",
+      "type": "BASE TABLE",
+      "role": "fact",
+      "row_count": 10000,
+      "sampled": false,
+      "grain": "one row per campaign event (impression, click or conversion)",
+      "primary_key": { "column": "EVENT_ID", "source": "inferred" },
+      "freshness": { "column": "EVENT_TIMESTAMP", "max_value": "2026-09-27T01:34:21-07:00", "days_since_latest": 0 },
+      "columns": [
+        { "name": "EVENT_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 10000, "min": 1, "max": 10000, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "CAMPAIGN_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 20, "min": 1, "max": 20, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "CUSTOMER_ID", "type": "NUMBER", "nullable": true, "null_pct": 39.96, "distinct_count": 500, "min": 1, "max": 500, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "EVENT_TYPE", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 3, "min": null, "max": null, "accepted_values": ["click", "conversion", "impression"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "EVENT_TIMESTAMP", "type": "TIMESTAMP_LTZ", "nullable": true, "null_pct": 0.0, "distinct_count": 9997, "min": "2025-09-27T02:00:51-07:00", "max": "2026-09-27T01:34:21-07:00", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "DEVICE_TYPE", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 3, "min": null, "max": null, "accepted_values": ["desktop", "mobile", "tablet"], "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "CUSTOMER_ID is null for 39.96% of events (3,996), including 161 of 424 conversions.",
+        "Only 2,339 events (23.4%) fall inside their campaign's START_DATE-END_DATE window; 4,482 belong to campaigns with inverted dates and 3,179 fall outside a valid window.",
+        "4,508 of 6,004 identified events (75.1%) reach customers outside the campaign's TARGET_REGION (informational; consistent with random assignment).",
+        "EVENT_TIMESTAMP is TIMESTAMP_LTZ while other tables use TIMESTAMP_NTZ or DATE; normalize to UTC in staging.",
+        "No ORDER_ID column, so conversions cannot be linked to orders."
+      ]
+    },
+    {
+      "name": "RAW_CUSTOMERS",
+      "type": "BASE TABLE",
+      "role": "dimension",
+      "row_count": 500,
+      "sampled": false,
+      "grain": "one row per customer",
+      "primary_key": { "column": "CUSTOMER_ID", "source": "inferred" },
+      "freshness": { "column": "SIGNUP_DATE", "max_value": "2026-08-26", "days_since_latest": 32 },
+      "columns": [
+        { "name": "CUSTOMER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 500, "min": 1, "max": 500, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "CUSTOMER_NAME", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 500, "min": null, "max": null, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "REGION", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["APAC", "EMEA", "LATAM", "North America"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "SEGMENT", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 3, "min": null, "max": null, "accepted_values": ["Enterprise", "Mid-Market", "SMB"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "SIGNUP_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 385, "min": "2024-01-03", "max": "2026-08-26", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "221 of 500 customers have orders dated before SIGNUP_DATE (1,203 orders, up to 503 days earlier).",
+        "No new SIGNUP_DATE in 32 days while RAW_ORDERS is 3 days old; confirm the customer feed is current."
+      ]
+    },
+    {
+      "name": "RAW_ORDERS",
+      "type": "BASE TABLE",
+      "role": "fact",
+      "row_count": 5000,
+      "sampled": false,
+      "grain": "one row per order",
+      "primary_key": { "column": "ORDER_ID", "source": "inferred" },
+      "freshness": { "column": "ORDER_DATE", "max_value": "2026-09-24", "days_since_latest": 3 },
+      "columns": [
+        { "name": "ORDER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 5000, "min": 1, "max": 5000, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "CUSTOMER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 500, "min": 1, "max": 500, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "ORDER_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 538, "min": "2025-04-05", "max": "2026-09-24", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "STATUS", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 3, "min": null, "max": null, "accepted_values": ["CANCELLED", "COMPLETED", "PENDING"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "AMOUNT", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 4949, "min": 20.11, "max": 2000.94, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "1,203 orders (24.1%) are dated before the customer's SIGNUP_DATE.",
+        "Successful payments do not sum to AMOUNT for 1,496 orders (29.9%), including 1,272 COMPLETED orders.",
+        "205 COMPLETED orders have no successful payment.",
+        "449 of 471 CANCELLED orders have a successful payment and no refund.",
+        "226 of 243 PENDING orders already have a shipment (220 already delivered); STATUS looks stale.",
+        "417 COMPLETED orders have no shipment (confirm whether non-shipped orders are expected)."
+      ]
+    },
+    {
+      "name": "RAW_PAYMENTS",
+      "type": "BASE TABLE",
+      "role": "fact",
+      "row_count": 5737,
+      "sampled": false,
+      "grain": "one row per payment attempt (ORDER_ID + PAYMENT_SEQ is unique; up to 2 per order)",
+      "primary_key": { "column": "PAYMENT_ID", "source": "inferred" },
+      "freshness": { "column": "PAYMENT_DATE", "max_value": "2026-09-24T23:20:00", "days_since_latest": 3 },
+      "columns": [
+        { "name": "PAYMENT_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 5737, "min": 1, "max": 5737, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "ORDER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 5000, "min": 1, "max": 5000, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "PAYMENT_SEQ", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 2, "min": 1, "max": 2, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "PAYMENT_METHOD", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 5, "min": null, "max": null, "accepted_values": ["Credit Card", "Debit Card", "Gift Card", "PayPal", "Wire Transfer"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "PAYMENT_AMOUNT", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 5648, "min": 8.45, "max": 2000.94, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "PAYMENT_DATE", "type": "TIMESTAMP_NTZ", "nullable": true, "null_pct": 0.0, "distinct_count": 5716, "min": "2025-04-05T00:23:00", "max": "2026-09-24T23:20:00", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "PAYMENT_STATUS", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 2, "min": null, "max": null, "accepted_values": ["FAILED", "SUCCESS"], "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "(ORDER_ID, PAYMENT_SEQ) is unique; 4,263 orders have one payment and 737 have two.",
+        "325 payments (5.7%) FAILED; 236 orders have no SUCCESS payment.",
+        "577 single-payment orders are paid below the order AMOUNT; 686 of 737 two-payment orders total more than AMOUNT.",
+        "648 orders have two SUCCESS payments; confirm payment semantics (split, retry or duplicate) before summing.",
+        "No payment is dated before its order."
+      ]
+    },
+    {
+      "name": "RAW_PRODUCTS",
+      "type": "BASE TABLE",
+      "role": "dimension",
+      "row_count": 200,
+      "sampled": false,
+      "grain": "one row per product",
+      "primary_key": { "column": "PRODUCT_ID", "source": "inferred" },
+      "freshness": { "column": "CREATED_DATE", "max_value": "2026-07-27", "days_since_latest": 62 },
+      "columns": [
+        { "name": "PRODUCT_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 200, "min": 1, "max": 200, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "PRODUCT_NAME", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 200, "min": null, "max": null, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "CATEGORY_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 15, "min": 1, "max": 15, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "LIST_PRICE", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 200, "min": 5.38, "max": 494.2, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "COST_PRICE", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 200, "min": 2.6, "max": 249.97, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "CREATED_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 180, "min": "2024-07-19", "max": "2026-07-27", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "IS_ACTIVE", "type": "BOOLEAN", "nullable": true, "null_pct": 0.0, "distinct_count": 2, "min": null, "max": null, "accepted_values": [false, true], "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "45 of 200 products (22.5%) have COST_PRICE greater than LIST_PRICE.",
+        "Category MARGIN_TIER does not match product margins: negative-margin products appear in every tier (High 20, Medium 11, Low 14).",
+        "Not referenced by any table (no order-line table), so products cannot be tied to orders or revenue.",
+        "29 products are inactive (IS_ACTIVE = false); no product was created in the last 62 days."
+      ]
+    },
+    {
+      "name": "RAW_PRODUCT_CATEGORIES",
+      "type": "BASE TABLE",
+      "role": "dimension",
+      "row_count": 15,
+      "sampled": false,
+      "grain": "one row per product category",
+      "primary_key": { "column": "CATEGORY_ID", "source": "inferred" },
+      "freshness": null,
+      "columns": [
+        { "name": "CATEGORY_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 15, "min": 1, "max": 15, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "CATEGORY_NAME", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 15, "min": null, "max": null, "accepted_values": ["Automotive", "Beauty", "Books", "Clothing", "Electronics", "Food & Beverage", "Gaming", "Health", "Home & Garden", "Jewelry", "Music", "Office Supplies", "Pet Supplies", "Sports", "Toys"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "MARGIN_TIER", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 3, "min": null, "max": null, "accepted_values": ["High Margin", "Low Margin", "Medium Margin"], "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "No date or timestamp column, so freshness cannot be tracked.",
+        "MARGIN_TIER is inconsistent with product-level margins (see RAW_PRODUCTS).",
+        "CATEGORY_NAME is a unique label; its accepted_values list all 15 names only because the table is small."
+      ]
+    },
+    {
+      "name": "RAW_PROMOTIONS",
+      "type": "BASE TABLE",
+      "role": "standalone",
+      "row_count": 30,
+      "sampled": false,
+      "grain": "one row per promotion (PROMO_CODE is unique)",
+      "primary_key": { "column": "PROMOTION_ID", "source": "inferred" },
+      "freshness": { "column": "START_DATE", "max_value": "2026-08-17", "days_since_latest": 41 },
+      "columns": [
+        { "name": "PROMOTION_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 30, "min": 1, "max": 30, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "PROMO_CODE", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 30, "min": null, "max": null, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "DISCOUNT_TYPE", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["Buy One Get One", "Fixed Amount", "Free Shipping", "Percentage"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "DISCOUNT_VALUE", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 25, "min": 5, "max": 92, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "START_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 28, "min": "2025-10-04", "max": "2026-08-17", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "END_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 29, "min": "2025-10-25", "max": "2026-10-18", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "MIN_ORDER_AMOUNT", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 29, "min": 86, "max": 489, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "Standalone: no table references PROMOTION_ID or PROMO_CODE, and RAW_ORDERS has no promotion column.",
+        "13 of 30 promotions (43%) have END_DATE before START_DATE.",
+        "DISCOUNT_VALUE is populated for Buy One Get One (5-69) and Free Shipping (12-87), where a numeric discount has no clear meaning; Percentage values reach 92.",
+        "No promotion started in the last 41 days; only 1 is still running."
+      ]
+    },
+    {
+      "name": "RAW_REFUNDS",
+      "type": "BASE TABLE",
+      "role": "fact",
+      "row_count": 356,
+      "sampled": false,
+      "grain": "one row per refund (at most one refund per order)",
+      "primary_key": { "column": "REFUND_ID", "source": "inferred" },
+      "freshness": { "column": "REFUND_DATE", "max_value": "2026-09-19", "days_since_latest": 8 },
+      "columns": [
+        { "name": "REFUND_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 356, "min": 1, "max": 356, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "ORDER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 356, "min": 9, "max": 4979, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "REFUND_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 252, "min": "2025-04-15", "max": "2026-09-19", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "REFUND_AMOUNT", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 355, "min": 9.79, "max": 1975.26, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "ORDER_ID is unique: at most one refund per order (one-to-one with RAW_ORDERS).",
+        "All refunds are on COMPLETED orders, do not exceed the order AMOUNT, and are dated on or after the order.",
+        "15 refunds are on orders with no successful payment; 42 exceed the amount actually paid successfully."
+      ]
+    },
+    {
+      "name": "RAW_SHIPMENTS",
+      "type": "BASE TABLE",
+      "role": "fact",
+      "row_count": 4095,
+      "sampled": false,
+      "grain": "one row per shipment (at most one shipment per order)",
+      "primary_key": { "column": "SHIPMENT_ID", "source": "inferred" },
+      "freshness": { "column": "SHIPPED_DATE", "max_value": "2026-09-27", "days_since_latest": 0 },
+      "columns": [
+        { "name": "SHIPMENT_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 4095, "min": 1, "max": 4095, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "ORDER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 4095, "min": 2, "max": 5000, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "SHIPPED_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 540, "min": "2025-04-05", "max": "2026-09-27", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "DELIVERED_DATE", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 548, "min": "2025-04-08", "max": "2026-10-08", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "SHIPPING_METHOD", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["Economy", "Express", "Overnight", "Standard"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "CARRIER", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["DHL", "FedEx", "UPS", "USPS"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "SHIPPING_COST", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 1912, "min": 3, "max": 25.99, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "ORDER_ID is unique: at most one shipment per order (one-to-one with RAW_ORDERS).",
+        "57 shipments have a future DELIVERED_DATE (max 2026-10-08), 51 of them on COMPLETED orders; DELIVERED_DATE looks like an estimate, not an actual delivery.",
+        "226 shipments belong to PENDING orders, 220 of them already delivered.",
+        "No shipments for CANCELLED orders, none shipped before the order date, none delivered before shipping."
+      ]
+    },
+    {
+      "name": "RAW_SUPPORT_TICKETS",
+      "type": "BASE TABLE",
+      "role": "fact",
+      "row_count": 800,
+      "sampled": false,
+      "grain": "one row per support ticket",
+      "primary_key": { "column": "TICKET_ID", "source": "inferred" },
+      "freshness": { "column": "CREATED_AT", "max_value": "2026-09-25", "days_since_latest": 2 },
+      "columns": [
+        { "name": "TICKET_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 800, "min": 1, "max": 800, "accepted_values": null, "is_primary_key": true, "is_foreign_key": false },
+        { "name": "CUSTOMER_ID", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 394, "min": 2, "max": 500, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "ORDER_ID", "type": "NUMBER", "nullable": true, "null_pct": 30.38, "distinct_count": 526, "min": 21, "max": 4993, "accepted_values": null, "is_primary_key": false, "is_foreign_key": true },
+        { "name": "CATEGORY", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 6, "min": null, "max": null, "accepted_values": ["Account", "Billing", "Product Quality", "Returns", "Shipping", "Technical"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "PRIORITY", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["Critical", "High", "Low", "Medium"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "STATUS", "type": "TEXT", "nullable": true, "null_pct": 0.0, "distinct_count": 4, "min": null, "max": null, "accepted_values": ["Closed", "In Progress", "Open", "Resolved"], "is_primary_key": false, "is_foreign_key": false },
+        { "name": "CREATED_AT", "type": "DATE", "nullable": true, "null_pct": 0.0, "distinct_count": 321, "min": "2025-09-27", "max": "2026-09-25", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "RESOLVED_AT", "type": "TIMESTAMP_NTZ", "nullable": true, "null_pct": 23.13, "distinct_count": 595, "min": "2025-09-28T00:00:00", "max": "2026-10-02T08:00:00", "accepted_values": null, "is_primary_key": false, "is_foreign_key": false },
+        { "name": "SATISFACTION_SCORE", "type": "NUMBER", "nullable": true, "null_pct": 0.0, "distinct_count": 5, "min": 1, "max": 5, "accepted_values": null, "is_primary_key": false, "is_foreign_key": false }
+      ],
+      "quality_notes": [
+        "CUSTOMER_ID differs from the order's CUSTOMER_ID for 554 of 557 tickets that reference an order (99.5%).",
+        "191 of 557 order-linked tickets were created before the order's ORDER_DATE.",
+        "87 Closed/Resolved tickets have no RESOLVED_AT; 313 Open/In Progress tickets have one.",
+        "SATISFACTION_SCORE is populated on all 411 Open/In Progress tickets.",
+        "6 tickets have RESOLVED_AT in the future (max 2026-10-02 08:00).",
+        "ORDER_ID is null for 243 tickets (30.4%), including 111 Returns/Shipping/Product Quality tickets.",
+        "CREATED_AT is a DATE while RESOLVED_AT is TIMESTAMP_NTZ; resolution times lose intraday precision."
+      ]
+    }
+  ],
+  "relationships": [
+    { "from_table": "RAW_CAMPAIGN_EVENTS", "from_column": "CAMPAIGN_ID", "to_table": "RAW_CAMPAIGNS", "to_column": "CAMPAIGN_ID", "cardinality": "many-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_CAMPAIGN_EVENTS", "from_column": "CUSTOMER_ID", "to_table": "RAW_CUSTOMERS", "to_column": "CUSTOMER_ID", "cardinality": "many-to-one", "optional": true, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_ORDERS", "from_column": "CUSTOMER_ID", "to_table": "RAW_CUSTOMERS", "to_column": "CUSTOMER_ID", "cardinality": "many-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_PAYMENTS", "from_column": "ORDER_ID", "to_table": "RAW_ORDERS", "to_column": "ORDER_ID", "cardinality": "many-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_PRODUCTS", "from_column": "CATEGORY_ID", "to_table": "RAW_PRODUCT_CATEGORIES", "to_column": "CATEGORY_ID", "cardinality": "many-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_REFUNDS", "from_column": "ORDER_ID", "to_table": "RAW_ORDERS", "to_column": "ORDER_ID", "cardinality": "one-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_SHIPMENTS", "from_column": "ORDER_ID", "to_table": "RAW_ORDERS", "to_column": "ORDER_ID", "cardinality": "one-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_SUPPORT_TICKETS", "from_column": "CUSTOMER_ID", "to_table": "RAW_CUSTOMERS", "to_column": "CUSTOMER_ID", "cardinality": "many-to-one", "optional": false, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" },
+    { "from_table": "RAW_SUPPORT_TICKETS", "from_column": "ORDER_ID", "to_table": "RAW_ORDERS", "to_column": "ORDER_ID", "cardinality": "many-to-one", "optional": true, "match_pct": 100.0, "orphan_count": 0, "confidence": "high", "source": "inferred" }
+  ]
+}
