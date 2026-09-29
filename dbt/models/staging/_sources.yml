@@ -1,0 +1,83 @@
+version: 2
+
+# Freshness is only configured on fact (event) tables: dimensions and standalone tables change
+# slowly by nature, so a freshness error on them would be noise.
+sources:
+  - name: raw
+    description: "Raw source tables profiled by data-analyzer (.cortex/analysis/SWT_BERLIN_2026/PUBLIC/analysis.json)."
+    database: SWT_BERLIN_2026
+    schema: PUBLIC
+    tables:
+      - name: campaigns
+        identifier: RAW_CAMPAIGNS
+        description: "One row per marketing campaign."
+
+      - name: campaign_events
+        identifier: RAW_CAMPAIGN_EVENTS
+        description: "One row per campaign interaction event (impression, click, conversion)."
+        config:
+          loaded_at_field: "convert_timezone('UTC', event_timestamp)::timestamp_ntz"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 14, period: day}
+
+      - name: customers
+        identifier: RAW_CUSTOMERS
+        description: "One row per customer."
+
+      - name: orders
+        identifier: RAW_ORDERS
+        description: "One row per order."
+        config:
+          loaded_at_field: "cast(order_date as timestamp_ntz)"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 14, period: day}
+
+      - name: payments
+        identifier: RAW_PAYMENTS
+        description: "One row per payment transaction (an order can have 1 or 2 payments)."
+        config:
+          loaded_at_field: "cast(payment_date as timestamp_ntz)"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 14, period: day}
+
+      - name: products
+        identifier: RAW_PRODUCTS
+        description: "One row per product."
+
+      - name: product_categories
+        identifier: RAW_PRODUCT_CATEGORIES
+        description: "One row per product category."
+
+      - name: promotions
+        identifier: RAW_PROMOTIONS
+        description: "One row per promo code."
+
+      - name: refunds
+        identifier: RAW_REFUNDS
+        description: "One row per refund (at most one refund per order)."
+        config:
+          loaded_at_field: "cast(refund_date as timestamp_ntz)"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 14, period: day}
+
+      - name: shipments
+        identifier: RAW_SHIPMENTS
+        description: "One row per shipment (at most one shipment per order)."
+        config:
+          loaded_at_field: "cast(shipped_date as timestamp_ntz)"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 14, period: day}
+
+      - name: support_tickets
+        identifier: RAW_SUPPORT_TICKETS
+        description: "One row per customer support ticket."
+        config:
+          loaded_at_field: "cast(created_at as timestamp_ntz)"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 14, period: day}

@@ -1,0 +1,265 @@
+version: 2
+
+models:
+  - name: stg_campaigns
+    description: "One row per marketing campaign."
+    columns:
+      - name: campaign_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: channel
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Affiliate', 'Display', 'Email', 'Influencer', 'Paid Search', 'Social Media']
+      - name: target_region
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['APAC', 'EMEA', 'LATAM', 'North America']
+      - name: is_end_before_start
+        description: "Quality flag: END_DATE is before START_DATE."
+      - name: is_over_budget
+        description: "Quality flag: SPEND is greater than BUDGET."
+
+  - name: stg_campaign_events
+    description: "One row per campaign interaction event (impression, click, conversion)."
+    columns:
+      - name: event_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: campaign_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_campaigns')
+                field: campaign_id
+      - name: customer_id
+        description: "Optional FK: null for anonymous events."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+              config:
+                where: "customer_id is not null"
+      - name: event_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['click', 'conversion', 'impression']
+      - name: event_timestamp
+        description: "Normalized from TIMESTAMP_LTZ to UTC TIMESTAMP_NTZ."
+      - name: device_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['desktop', 'mobile', 'tablet']
+
+  - name: stg_customers
+    description: "One row per customer."
+    columns:
+      - name: customer_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: region
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['APAC', 'EMEA', 'LATAM', 'North America']
+      - name: segment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Enterprise', 'Mid-Market', 'SMB']
+
+  - name: stg_orders
+    description: "One row per order."
+    columns:
+      - name: order_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: order_status
+        description: "Renamed from STATUS."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['CANCELLED', 'COMPLETED', 'PENDING']
+      - name: order_amount
+        description: "Renamed from AMOUNT."
+      - name: is_completed
+        description: "order_status = 'COMPLETED'."
+
+  - name: stg_payments
+    description: "One row per payment transaction (an order can have 1 or 2 payments)."
+    columns:
+      - name: payment_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: payment_method
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Credit Card', 'Debit Card', 'Gift Card', 'PayPal', 'Wire Transfer']
+      - name: payment_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['FAILED', 'SUCCESS']
+      - name: is_successful
+        description: "payment_status = 'SUCCESS'."
+
+  - name: stg_products
+    description: "One row per product."
+    columns:
+      - name: product_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: category_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product_categories')
+                field: category_id
+      - name: is_negative_margin
+        description: "Quality flag: COST_PRICE is greater than LIST_PRICE."
+      - name: is_active
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+                quote: false
+
+  - name: stg_product_categories
+    description: "One row per product category."
+    columns:
+      - name: category_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: margin_tier
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['High Margin', 'Low Margin', 'Medium Margin']
+
+  - name: stg_promotions
+    description: "One row per promo code. Standalone: nothing references it, so it has no mart."
+    columns:
+      - name: promotion_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: promo_code
+        data_tests: [unique, not_null]
+      - name: discount_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Buy One Get One', 'Fixed Amount', 'Free Shipping', 'Percentage']
+      - name: is_end_before_start
+        description: "Quality flag: END_DATE is before START_DATE."
+
+  - name: stg_refunds
+    description: "One row per refund (at most one refund per order)."
+    columns:
+      - name: refund_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+
+  - name: stg_shipments
+    description: "One row per shipment (at most one shipment per order)."
+    columns:
+      - name: shipment_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: shipping_method
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Economy', 'Express', 'Overnight', 'Standard']
+      - name: carrier
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['DHL', 'FedEx', 'UPS', 'USPS']
+      - name: is_delivery_in_future
+        description: "Quality flag: DELIVERED_DATE is in the future (likely an estimate)."
+
+  - name: stg_support_tickets
+    description: "One row per customer support ticket."
+    columns:
+      - name: ticket_id
+        description: "Primary key."
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: order_id
+        description: "Optional FK: null for tickets not about a specific order."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+              config:
+                where: "order_id is not null"
+      - name: category
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Account', 'Billing', 'Product Quality', 'Returns', 'Shipping', 'Technical']
+      - name: priority
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Critical', 'High', 'Low', 'Medium']
+      - name: ticket_status
+        description: "Renamed from STATUS."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Closed', 'In Progress', 'Open', 'Resolved']
+      - name: created_at
+        description: "Cast from DATE to TIMESTAMP_NTZ."
+      - name: is_resolved_before_created
+        description: "Quality flag: RESOLVED_AT is before CREATED_AT."
+      - name: is_resolved_in_future
+        description: "Quality flag: RESOLVED_AT is in the future."
+      - name: is_status_resolution_mismatch
+        description: "Quality flag: status and RESOLVED_AT disagree."

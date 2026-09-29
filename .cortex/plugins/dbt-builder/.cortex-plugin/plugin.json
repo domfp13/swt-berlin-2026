@@ -1,0 +1,5 @@
+{
+  "name": "dbt-builder",
+  "description": "Generate a dbt project (stg_* and mart_* models) from a data-analyzer analysis.json, run it natively in Snowflake, and remove it again. Both commands are idempotent and share the dbt/ scaffold: remove deletes only the generated models, build regenerates only what is missing.",
+  "version": "0.2.0"
+}

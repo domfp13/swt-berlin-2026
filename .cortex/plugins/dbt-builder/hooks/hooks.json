@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "snowflake_sql_execute|bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard_raw.py\"",
+            "timeout": 15,
+            "statusMessage": "Checking SQL against RAW_ guard"
+          }
+        ]
+      }
+    ]
+  }
+}

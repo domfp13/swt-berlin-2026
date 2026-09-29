@@ -1,0 +1,12 @@
+swt_berlin_2026:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: ""
+      user: ""
+      role: SYSADMIN
+      database: SWT_BERLIN_2026
+      warehouse: ADAPTIVE_WH
+      schema: PUBLIC
+      threads: 4
