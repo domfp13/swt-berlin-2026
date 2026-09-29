@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: mart_customers
+    description: "Customer dimension. One row per customer."
+    config:
+      meta: {role: dimension, source_table: RAW_CUSTOMERS}
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+
+  - name: mart_products
+    description: "Product dimension with its category folded in (snowflaked from RAW_PRODUCT_CATEGORIES). One row per product."
+    config:
+      meta: {role: dimension, source_table: RAW_PRODUCTS}
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+
+  - name: mart_campaigns
+    description: "Campaign dimension. One row per marketing campaign."
+    config:
+      meta: {role: dimension, source_table: RAW_CAMPAIGNS}
+    columns:
+      - name: campaign_id
+        data_tests: [unique, not_null]
+
+  - name: mart_orders
+    description: "Order fact with customer attributes. One row per order."
+    config:
+      meta: {role: fact, source_table: RAW_ORDERS}
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+
+  - name: mart_payments
+    description: "Payment fact with the order's customer attributes. One row per payment."
+    config:
+      meta: {role: fact, source_table: RAW_PAYMENTS}
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
+
+  - name: mart_refunds
+    description: "Refund fact with the order's customer attributes. One row per refund."
+    config:
+      meta: {role: fact, source_table: RAW_REFUNDS}
+    columns:
+      - name: refund_id
+        data_tests: [unique, not_null]
+
+  - name: mart_shipments
+    description: "Shipment fact with delivery days and the order's customer attributes. One row per shipment."
+    config:
+      meta: {role: fact, source_table: RAW_SHIPMENTS}
+    columns:
+      - name: shipment_id
+        data_tests: [unique, not_null]
+
+  - name: mart_support_tickets
+    description: "Support ticket fact with resolution hours and customer attributes. One row per ticket."
+    config:
+      meta: {role: fact, source_table: RAW_SUPPORT_TICKETS}
+    columns:
+      - name: ticket_id
+        data_tests: [unique, not_null]
+
+  - name: mart_campaign_events
+    description: "Campaign event fact with campaign and (when known) customer attributes. One row per event."
+    config:
+      meta: {role: fact, source_table: RAW_CAMPAIGN_EVENTS}
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
