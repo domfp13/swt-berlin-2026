@@ -1,11 +1,13 @@
 ---
 name: build-from-analysis
-description: "Generate a dbt project of stg_* and mart_* models from a data-analyzer analysis.json contract, then deploy and build it natively in Snowflake using the dbt-projects-on-snowflake skill. Triggers: build dbt from analysis, generate dbt pipeline, create dbt transformations, dbt from analysis.json, build stg and mart models, scaffold dbt project from schema analysis."
+description: "Generate a dbt project of stg_* and mart_* models from a data-analyzer analysis.json contract, then deploy and build it natively in Snowflake using the dbt-projects-on-snowflake skill. Reuses an existing dbt/ folder (dbt_project.yml, profiles.yml, _*.yml, tests/, models) and generates only the missing files, so it is safe to re-run and pairs with remove-transformations. Triggers: build dbt from analysis, generate dbt pipeline, create dbt transformations, dbt from analysis.json, build stg and mart models, scaffold dbt project from schema analysis, rebuild dbt models, redeploy dbt project, rerun dbt build."
 ---
 
 # Build dbt Transformations from Analysis
 
 Turn the analysis contract for `$ARGUMENTS` (`DB.SCHEMA`) into a dbt project, deploy it into Snowflake, and run `dbt build`.
+
+`dbt/` may already contain a scaffold. That can be a committed `dbt_project.yml`, `profiles.yml`, `_*.yml` files, and `tests/`, left after `/dbt-builder:remove-transformations` deleted the model SQL. It can also be a complete earlier build. Keep what is there and generate only what is missing. Running this again redeploys and rebuilds the same project, so the two commands can alternate.
 
 This skill **writes the models**. Deploying, executing, and dropping are delegated to the bundled **`dbt-projects-on-snowflake`** skill. Load it with the `skill` tool and read its `deploy/SKILL.md`, `execute/SKILL.md`, and `references/profiles-yml.md` before running any `snow dbt` command. Do not reinvent that syntax.
 
@@ -19,7 +21,7 @@ This skill **writes the models**. Deploying, executing, and dropping are delegat
 
 | Setting | Value |
 |---|---|
-| dbt project folder | `<workspace-root>/dbt/` (overwrite on every run) |
+| dbt project folder | `<workspace-root>/dbt/`. Existing files are kept; only missing files are generated (Step 2). |
 | dbt project name | lowercase `<DB>` with non-alphanumerics as `_` (e.g. `swt_berlin_2026`) |
 | DBT PROJECT object | `<DB>.<SCHEMA>.<DB>_DBT` with `_2026`-style suffixes kept (e.g. `SWT_BERLIN_2026.PUBLIC.SWT_BERLIN_2026_DBT`) |
 | Target schema | `<SCHEMA>`. Every model lands in the same schema as the sources. Never set `+schema`. |
@@ -38,9 +40,24 @@ Load `analysis.json`. Build three lists:
 
 Entity name = table name with the `RAW_`, `SRC_`, or `STG_` prefix removed, lowercased (`RAW_ORDERS` -> `orders`).
 
-## Step 2: Generate the project
+## Step 2: Take stock of `dbt/`
 
-Write these files, overwriting any previous run. Keep SQL lowercase and readable; one CTE per input.
+Existing files may have been reviewed or hand-tuned. Regenerating them would throw that work away, and every run would produce a different diff. Glob `<workspace-root>/dbt/` and decide per file:
+
+| File | Exists | Missing |
+|---|---|---|
+| `dbt_project.yml`, `profiles.yml` | Keep. Check `name` and `profile` equal `<project_name>`, and `profiles.yml` targets `<DB>` / `<SCHEMA>` with no forbidden fields. On a mismatch, show it and ask before changing anything. | Generate |
+| `models/staging/_sources.yml`, `models/staging/_stg_models.yml`, `models/marts/_mart_models.yml` | Keep. They are the spec for the SQL: collect every model, column, rename, and `is_*` flag they declare. For a contract table they lack, append an entry; don't rewrite existing ones. | Generate |
+| `tests/assert_*.sql` | Keep. Collect the models and columns each one references; the SQL must provide them. | Generate |
+| `models/staging/stg_*.sql`, `models/marts/mart_*.sql` | Keep. | Generate |
+
+If a YAML entry has no contract table, report it and leave it alone. If nothing is missing, skip Step 3; the run just redeploys and rebuilds.
+
+Before generating, tell the user in one line which files you are reusing and which you will generate.
+
+## Step 3: Generate the missing files
+
+Generate only the files Step 2 marked missing. When YAML for a model already exists, follow it: output exactly the columns, renames, and flags it documents, in contract column order. The templates below fill in everything else. Keep SQL lowercase and readable; one CTE per input.
 
 ### `dbt/dbt_project.yml`
 
@@ -158,39 +175,47 @@ Create one per quality note that is a checkable rule, **including cross-table ru
 
 Known quality issues must **warn, not fail**. The build should succeed and show them.
 
-## Step 3: Validate before deploying
+## Step 4: Validate before deploying
 
 - Every file in `models/` is named `stg_*.sql` or `mart_*.sql` (plus `_*.yml`). If not, fix the name.
 - Every `ref()` points to a model that exists, and every `source()` points to a declared table.
+- Every column documented in `_stg_models.yml` / `_mart_models.yml`, and every column a singular test uses, is produced by its model. This matters most when the YAML was reused: a missing column only fails at build time.
 - `profiles.yml` has no forbidden fields.
 
-## Step 4: Deploy and build (delegate to `dbt-projects-on-snowflake`)
+## Step 5: Deploy and build (delegate to `dbt-projects-on-snowflake`)
 
-Load `dbt-projects-on-snowflake` and follow its **DEPLOY** and **EXECUTE** sub-skills. With this project's values:
+Load `dbt-projects-on-snowflake` and follow its **DEPLOY** and **EXECUTE** sub-skills. First check the CLI can log in with `snow connection test -c <connection>`. An expired OAuth token otherwise fails midway through the deploy. If the test fails, use the SQL-only fallback below instead.
 
 ```bash
 snow dbt deploy <DB>_DBT --source <workspace-root>/dbt --database <DB> --schema <SCHEMA> --dbt-version <dbt_version> -c <connection>
 snow dbt execute -c <connection> --database <DB> --schema <SCHEMA> <DB>_DBT build
 ```
 
-Deploying again creates a new project version, which is expected.
+`snow dbt deploy` creates the object or updates the existing one, so re-running it is safe.
 
 **SQL-only fallback** (use it if `snow` cannot authenticate or is unavailable; everything runs through the active connection):
 
 ```sql
 CREATE STAGE IF NOT EXISTS <DB>.<SCHEMA>.DBT_BUILDER_STAGE;
--- PUT each file under dbt/ into @<DB>.<SCHEMA>.DBT_BUILDER_STAGE/<relative_dir>/ with AUTO_COMPRESS = FALSE OVERWRITE = TRUE
-CREATE DBT PROJECT IF NOT EXISTS <DB>.<SCHEMA>.<DB>_DBT FROM '@<DB>.<SCHEMA>.DBT_BUILDER_STAGE' DBT_VERSION = '<dbt_version>';
--- when the project already exists:
+REMOVE @<DB>.<SCHEMA>.DBT_BUILDER_STAGE;   -- start empty so the stage mirrors dbt/ exactly (no stale files from earlier runs)
+-- PUT file://<workspace-root>/dbt/<dir>/* @<DB>.<SCHEMA>.DBT_BUILDER_STAGE/<dir>/ AUTO_COMPRESS = FALSE OVERWRITE = TRUE
+--   once for the root files (dbt_project.yml, profiles.yml), then models/staging, models/marts, and tests.
+--   LIST the stage afterwards and check it holds exactly the local files.
+SHOW DBT PROJECTS LIKE '<DB>_DBT' IN SCHEMA <DB>.<SCHEMA>;
+-- project missing:
+CREATE DBT PROJECT <DB>.<SCHEMA>.<DB>_DBT FROM '@<DB>.<SCHEMA>.DBT_BUILDER_STAGE' DBT_VERSION = '<dbt_version>';
+-- project exists and SHOW reports default_version = LIVE (single mutable live version):
+ALTER DBT PROJECT <DB>.<SCHEMA>.<DB>_DBT DEPLOY FROM '@<DB>.<SCHEMA>.DBT_BUILDER_STAGE';
+-- project exists with numbered versions (accounts without the live version):
 ALTER DBT PROJECT <DB>.<SCHEMA>.<DB>_DBT ADD VERSION FROM '@<DB>.<SCHEMA>.DBT_BUILDER_STAGE';
 EXECUTE DBT PROJECT <DB>.<SCHEMA>.<DB>_DBT ARGS='build';
 ```
 
-If the build fails: read the error, fix the generated files, redeploy, and rebuild. Do not weaken or delete a generic test to get green unless the contract itself is wrong (and say so).
+If the build fails: read the error, fix the generated files, redeploy, and rebuild. If the cause is in a reused file, show the fix and ask before editing it. Do not weaken or delete a generic test to get green unless the contract itself is wrong (and say so).
 
 After a green build, run the `dbt-verify` subagent (read-only: no local dbt-core, Snowflake SELECTs only) and fix anything it reports as a correctness issue before reporting success.
 
-## Step 5: Verify and report
+## Step 6: Verify and report
 
 ```sql
 SELECT table_name, table_type, row_count
@@ -202,7 +227,8 @@ ORDER BY table_name;
 Check that each mart's row count equals its source table's `row_count` in the contract.
 
 Reply briefly with:
+- files reused vs generated
 - models built (count of stg and mart), and tests passed / warned / failed
 - the warnings (these are the known data-quality issues)
 - anything skipped (standalone tables, low-confidence relationships)
-- how to undo: `/dbt-builder:remove-transformations <DB>.<SCHEMA>`
+- how to undo: `/dbt-builder:remove-transformations <DB>.<SCHEMA>` (drops the objects and the generated model files, keeps the scaffold)
