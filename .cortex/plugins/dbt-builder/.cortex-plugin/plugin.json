@@ -1,0 +1,5 @@
+{
+  "name": "dbt-builder",
+  "description": "Generate a dbt project (stg_* and mart_* models) from a data-analyzer analysis.json, run it natively in Snowflake, and remove it again.",
+  "version": "0.1.0"
+}
